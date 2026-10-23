@@ -34,8 +34,7 @@ def main():
             continue
         messages.append({"role": "user", "content": user_text})
         reply = call_llm(messages)                  # resend EVERYTHING
-        text = "".join(b["text"] for b in reply["content"]
-                       if b["type"] == "text")
+        text = "".join(b["text"] for b in reply["content"] if b["type"] == "text")
         messages.append({"role": "assistant", "content": reply["content"]})
         print(f"메모리에 저장된 대회 {messages}")
         print(f"\nassistant> {text}")
