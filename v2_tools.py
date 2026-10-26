@@ -51,25 +51,30 @@ def execute_tool(name, args):  # NEW: the dispatch
 
 
 def main():
-    messages = []  # the entire "session"
+    messages = []
     while True:
         user_text = input("\nyou> ").strip()
         if user_text in ("/quit", ""):
             break
-        if user_text == "/clear":
-            messages = []  # "new conversation"
-            continue
         messages.append({"role": "user", "content": user_text})
-        reply = call_llm(messages)  # resend EVERYTHING
-        print(f"this is the raw reply from the model: {reply}\n")
-        for b in reply["content"]:
-            if b["type"] == "tool_use":
-                print(f"tool_use full content: {b}")
 
-            elif b["type"] == "text":
-                text = "".join(b["text"] for b in reply["content"] if b["type"] == "text")
-                messages.append({"role": "assistant", "content": reply["content"]})
-                print(f"\nassistant> {text}")
+        reply = call_llm(messages)
+        messages.append({"role": "assistant", "content": reply["content"]})
+
+        for block in reply["content"]:
+            if block["type"] == "text":
+                print(f"\nassistant> {block['text']}")
+            elif block["type"] == "tool_use":  # NEW: honor ONE request
+                print(f"\n[tool] {block['name']}({json.dumps(block['input'])})")
+                result = execute_tool(block["name"], block["input"])
+                messages.append({"role": "user", "content": [{"type": "tool_result", "tool_use_id": block["id"], "content": result}]})
+                reply2 = call_llm(messages)  # let the model react once
+                messages.append({"role": "assistant", "content": reply2["content"]})
+                for b2 in reply2["content"]:
+                    if b2["type"] == "text":
+                        print(f"\nassistant> {b2['text']}")
+                # If reply2 asks for ANOTHER tool, v2 drops it. Chapter 4.
+        print(f"print messages \n{messages}")
 
 
 if __name__ == "__main__":
